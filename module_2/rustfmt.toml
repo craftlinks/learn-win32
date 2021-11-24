@@ -1,0 +1,4 @@
+edition = "2021"
+max_width = 80
+wrap_comments = true
+normalize_comments = true

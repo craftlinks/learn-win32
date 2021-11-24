@@ -45,7 +45,7 @@ fn main() -> Result<()> {
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassw
         let wc = WNDCLASSA {
             hInstance: instance,
-            lpszClassName: PSTR(b"window\0".as_ptr() as *mut u8),
+            lpszClassName: PSTR(window_class.as_ptr() as *mut u8),
             lpfnWndProc: Some(wndproc),
             // https://docs.microsoft.com/en-us/windows/win32/winmsg/window-class-styles
             style: CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
@@ -62,13 +62,12 @@ fn main() -> Result<()> {
         debug_assert!(atom != 0);
 
         // Create the window.
-        // If the function succeeds, the return value is a handle to the new
-        // window. If the function fails, the return value is NULL.
+        // returns a handle to the new window, or zero if the function fails.
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexw
         let handle = CreateWindowExA(
             Default::default(),
             PSTR(window_class.as_ptr() as _),
-            PSTR(b"This is a sample window\0".as_ptr() as _),
+            PSTR(b"This is a sample window\0".as_ptr() as *mut u8),
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
@@ -77,6 +76,8 @@ fn main() -> Result<()> {
             None,
             None,
             wc.hInstance,
+            // A pointer to arbitrary data of type void*. You can use this
+            // value to pass a data structure to your window procedure.
             std::ptr::null_mut(),
         );
         debug_assert!(handle.0 != 0);
