@@ -16,7 +16,7 @@ use windows::Win32::{
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 #[derive(Default)]
-pub struct WindowState {
+pub struct WindowContext {
     i: u8,
 }
 
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
 
         let window_class = b"window\0";
 
-        let window_state: *const WindowState = &WindowState { i: 100 };
+        let window_context: *const WindowContext = &WindowContext { i: 100 };
 
         // Fields
         // style: WNDCLASS_STYLES
@@ -87,7 +87,7 @@ fn main() -> Result<()> {
             wc.hInstance,
             // A pointer to arbitrary data of type void*. You can use this
             // value to pass a data structure to your window procedure.
-            window_state as *const c_void,
+            window_context as *const c_void,
         );
         debug_assert!(handle.0 != 0);
 
@@ -123,17 +123,21 @@ extern "system" fn wndproc(
         // (via CreateWindowEx function).
         if message == WM_CREATE {
             let createstruct = &mut *(lparam.0 as *mut CREATESTRUCTA);
-            let initdata: &mut WindowState =
+            let init_context: &mut WindowContext =
                 mem::transmute(createstruct.lpCreateParams);
 
             // Pass the pointer of the user data structure to the window
             // instance. From then on you can always retrieve the pointer back
             // from the window by calling the GetWindowLongPtrA function.
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, mem::transmute(initdata));
+            SetWindowLongPtrA(
+                hwnd,
+                GWLP_USERDATA,
+                mem::transmute(init_context),
+            );
         }
 
         // Retrieve the user data associated with this window instance.
-        let user_data: &mut WindowState = {
+        let window_context: &mut WindowContext = {
             let user_data_ = GetWindowLongPtrA(hwnd, GWLP_USERDATA);
             mem::transmute(user_data_)
         };

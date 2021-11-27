@@ -19,6 +19,9 @@ dependencies = [
 [[package]]
 name = "module_3"
 version = "0.1.0"
+dependencies = [
+ "windows",
+]
 
 [[package]]
 name = "windows"
