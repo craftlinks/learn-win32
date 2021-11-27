@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, ffi::c_void, mem};
 
 use windows::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, PSTR, WPARAM},
@@ -6,13 +6,19 @@ use windows::Win32::{
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
         CreateWindowExA, DefWindowProcA, DispatchMessageA, GetMessageA,
-        LoadCursorW, PostQuitMessage, RegisterClassA, COLOR_WINDOW, CS_HREDRAW,
-        CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, IDC_CROSS, MSG, WM_DESTROY,
-        WM_PAINT, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+        GetWindowLongPtrA, LoadCursorW, PostQuitMessage, RegisterClassA,
+        SetWindowLongPtrA, COLOR_WINDOW, CREATESTRUCTA, CS_HREDRAW, CS_OWNDC,
+        CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, IDC_CROSS, MSG, WM_CREATE,
+        WM_DESTROY, WM_PAINT, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
     },
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
+
+#[derive(Default)]
+pub struct WindowState {
+    i: u8,
+}
 
 fn main() -> Result<()> {
     unsafe {
@@ -30,6 +36,8 @@ fn main() -> Result<()> {
         debug_assert!(instance.0 != 0);
 
         let window_class = b"window\0";
+
+        let window_state: *const WindowState = &WindowState { i: 100 };
 
         // Fields
         // style: WNDCLASS_STYLES
@@ -51,6 +59,7 @@ fn main() -> Result<()> {
             style: CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
             // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadcursorw
             hCursor: LoadCursorW(None, IDC_CROSS),
+
             ..Default::default()
         };
         // Registers a window class for subsequent use in calls to the
@@ -78,7 +87,7 @@ fn main() -> Result<()> {
             wc.hInstance,
             // A pointer to arbitrary data of type void*. You can use this
             // value to pass a data structure to your window procedure.
-            std::ptr::null_mut(),
+            window_state as *const c_void,
         );
         debug_assert!(handle.0 != 0);
 
@@ -110,6 +119,25 @@ extern "system" fn wndproc(
     lparam: LPARAM,
 ) -> LRESULT {
     unsafe {
+        // Get the initial application data when the window is first created
+        // (via CreateWindowEx function).
+        if message == WM_CREATE {
+            let createstruct = &mut *(lparam.0 as *mut CREATESTRUCTA);
+            let initdata: &mut WindowState =
+                mem::transmute(createstruct.lpCreateParams);
+
+            // Pass the pointer of the user data structure to the window
+            // instance. From then on you can always retrieve the pointer back
+            // from the window by calling the GetWindowLongPtrA function.
+            SetWindowLongPtrA(hwnd, GWLP_USERDATA, mem::transmute(initdata));
+        }
+
+        // Retrieve the user data associated with this window instance.
+        let user_data: &mut WindowState = {
+            let user_data_ = GetWindowLongPtrA(hwnd, GWLP_USERDATA);
+            mem::transmute(user_data_)
+        };
+
         match message as u32 {
             WM_PAINT => {
                 println!("WM_PAINT");
