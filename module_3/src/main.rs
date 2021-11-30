@@ -242,6 +242,7 @@ impl WindowContext {
             };
             self.calculate_layout();
             unsafe {
+                // The InvalidateRect function forces a repaint by adding the entire client area to the window's update region.
                 InvalidateRect(
                     self.window_handle,
                     std::ptr::null_mut(),
