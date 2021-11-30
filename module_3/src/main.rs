@@ -4,12 +4,12 @@ use windows::{
     core::Interface,
     Foundation::Numerics::Matrix3x2,
     Win32::{
-        Foundation::{HWND, LPARAM, LRESULT, PSTR, RECT, WPARAM, BOOL},
+        Foundation::{BOOL, HWND, LPARAM, LRESULT, PSTR, RECT, WPARAM},
         Graphics::{
             Direct2D::{
                 Common::{
-                    D2D1_ALPHA_MODE_UNKNOWN,
-                    D2D1_COLOR_F, D2D1_PIXEL_FORMAT, D2D_SIZE_U, D2D_POINT_2F,
+                    D2D1_ALPHA_MODE_UNKNOWN, D2D1_COLOR_F, D2D1_PIXEL_FORMAT,
+                    D2D_POINT_2F, D2D_SIZE_U,
                 },
                 D2D1CreateFactory, ID2D1Factory, ID2D1HwndRenderTarget,
                 ID2D1SolidColorBrush, D2D1_BRUSH_PROPERTIES,
@@ -19,16 +19,16 @@ use windows::{
                 D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
                 D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1_RENDER_TARGET_USAGE_NONE,
             },
-            Dxgi::Common::{DXGI_FORMAT_UNKNOWN},
-            Gdi::{BeginPaint, EndPaint, PAINTSTRUCT, InvalidateRect},
+            Dxgi::Common::DXGI_FORMAT_UNKNOWN,
+            Gdi::{BeginPaint, EndPaint, InvalidateRect, PAINTSTRUCT},
         },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
             CreateWindowExA, DefWindowProcA, DispatchMessageA, GetClientRect,
             GetMessageA, GetWindowLongPtrA, LoadCursorW, PostQuitMessage,
-            RegisterClassA, SetWindowLongPtrA, CREATESTRUCTA,
-            CS_HREDRAW, CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA,
-            IDC_CROSS, MSG, WM_CREATE, WM_SIZE, WM_DESTROY, WM_PAINT, WNDCLASSA,
+            RegisterClassA, SetWindowLongPtrA, CREATESTRUCTA, CS_HREDRAW,
+            CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, IDC_CROSS, MSG,
+            WM_CREATE, WM_DESTROY, WM_PAINT, WM_SIZE, WNDCLASSA,
             WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
@@ -79,11 +79,11 @@ impl WindowContext {
         if let Some(render_target) = &self.render_target {
             unsafe {
                 let size = render_target.GetSize();
-                let x = size.width/2_f32;
-                let y = size.height/2_f32;
+                let x = size.width / 2_f32;
+                let y = size.height / 2_f32;
                 let radius = x.min(y);
-                self.ellipse = D2D1_ELLIPSE{
-                    point: D2D_POINT_2F{ x, y },
+                self.ellipse = D2D1_ELLIPSE {
+                    point: D2D_POINT_2F { x, y },
                     radiusX: radius,
                     radiusY: radius,
                 };
@@ -178,11 +178,11 @@ impl WindowContext {
     pub fn discard_graphics_resources(&mut self) {
         self.render_target = None;
         self.brush = None;
-
     }
 
     pub fn on_paint(&mut self) {
-        self.create_graphics_resources().expect("Failed creating graphics resources.");
+        self.create_graphics_resources()
+            .expect("Failed creating graphics resources.");
 
         let mut ps = PAINTSTRUCT {
             ..Default::default()
@@ -190,25 +190,35 @@ impl WindowContext {
         unsafe {
             let hdc = BeginPaint(self.window_handle, &mut ps);
             debug_assert!(hdc.0 != 0);
-            
+
             // Initiates Direct2D drawing on this render target.
             self.render_target.as_ref().unwrap().BeginDraw();
 
             // Clears the drawing area to the specified color.
-            self.render_target.as_ref().unwrap().Clear( &D2D1_COLOR_F{r: 135_f32/256_f32, g:  206_f32/256_f32, b: 235_f32/256_f32,a: 0.8_f32});
+            self.render_target.as_ref().unwrap().Clear(&D2D1_COLOR_F {
+                r: 135_f32 / 256_f32,
+                g: 206_f32 / 256_f32,
+                b: 235_f32 / 256_f32,
+                a: 0.8_f32,
+            });
 
             // Paints the interior of the specified ellipse.
-            self.render_target.as_ref().unwrap().FillEllipse(&self.ellipse, self.brush.as_ref().unwrap());
+            self.render_target
+                .as_ref()
+                .unwrap()
+                .FillEllipse(&self.ellipse, self.brush.as_ref().unwrap());
 
             // Ends drawing operations on the render target and indicates the
             // current error state and associated tags.
-            self.render_target.as_ref()
+            self.render_target
+                .as_ref()
                 .unwrap()
                 .EndDraw(std::ptr::null_mut(), std::ptr::null_mut())
                 .map_err(|_| {
-                self.discard_graphics_resources();
-            }).unwrap();
-        
+                    self.discard_graphics_resources();
+                })
+                .unwrap();
+
             EndPaint(self.window_handle, &ps);
         }
     }
@@ -216,13 +226,28 @@ impl WindowContext {
     pub fn resize(&mut self) {
         if self.render_target.is_some() {
             let mut rc: RECT = RECT::default();
-            unsafe {GetClientRect(self.window_handle, &mut rc)};
+            unsafe { GetClientRect(self.window_handle, &mut rc) };
 
-            let size: D2D_SIZE_U = D2D_SIZE_U { width: (rc.right - rc.left) as u32, height: (rc.bottom - rc.top) as u32 };
+            let size: D2D_SIZE_U = D2D_SIZE_U {
+                width: (rc.right - rc.left) as u32,
+                height: (rc.bottom - rc.top) as u32,
+            };
 
-            unsafe { self.render_target.as_ref().unwrap().Resize(&size).expect("Failed at Resizing the window.")};
+            unsafe {
+                self.render_target
+                    .as_ref()
+                    .unwrap()
+                    .Resize(&size)
+                    .expect("Failed at Resizing the window.")
+            };
             self.calculate_layout();
-            unsafe {InvalidateRect(self.window_handle, std::ptr::null_mut(), BOOL(0))};
+            unsafe {
+                InvalidateRect(
+                    self.window_handle,
+                    std::ptr::null_mut(),
+                    BOOL(0),
+                )
+            };
         }
     }
 }
@@ -394,7 +419,7 @@ extern "system" fn wndproc(
 
             WM_SIZE => {
                 window_context.resize();
-                
+
                 LRESULT(0)
             }
 
