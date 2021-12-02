@@ -4,4 +4,5 @@ members = [
     "module_2",
     "module_3",
     "module_3_applying_transforms",
+    "module_3_bonus",
 ]
